@@ -30,20 +30,21 @@ io.on("connection", (socket) => {
   });
 
   //send and get message
-  socket.on("sendMessage", ({ senderId, receiverId, currentChatId, text }) => {
-    const user = getUser(receiverId);
-    const user2 = getUser(senderId);
-    io.to(user?.socketId).emit("getMessage", {
-      senderId,
-      currentChatId,
-      text,
-    });
+  socket.on("sendMessage", ({ messages, currentChatID }) => {
+    const user = getUser(messages?.receiver);
+    io.to(user?.socketId).emit("getMessage", { messages, currentChatID });
+  });
 
-    io.to(user2?.socketId).emit("getMessage", {
-      senderId,
-      currentChatId,
-      text,
-    });
+  //get and sent message delivered
+  socket.on("messageDelivered", (data) => {
+    const user = getUser(data.message?.sender);
+    io.to(user?.socketId).emit("getMessageDelivered", data);
+  });
+
+  //get and sent message seen
+  socket.on("messageSeen", (data) => {
+    const user = getUser(data.message?.sender);
+    io.to(user?.socketId).emit("getMessageSeen", data);
   });
 
   // Listen typing events
