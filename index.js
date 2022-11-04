@@ -47,6 +47,12 @@ io.on("connection", (socket) => {
     io.to(user?.socketId).emit("getMessageSeen", data);
   });
 
+  //get and sent message seen all
+  socket.on("messageSeenAll", (data) => {
+    const user = getUser(data.receiverId);
+    io.to(user?.socketId).emit("getMessageSeenAll", data);
+  });
+
   // Listen typing events
   socket.on("start typing message", (data) => {
     const user = getUser(data.receiverId);
