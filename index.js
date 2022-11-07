@@ -9,6 +9,7 @@ let users = [];
 const addUser = (userId, socketId) => {
   !users.some((user) => user.userId === userId) &&
     users.push({ userId, socketId });
+    console.log("user", users);
 };
 
 const removeUser = (socketId) => {
@@ -19,6 +20,8 @@ const getUser = (userId) => {
   return users.find((user) => user.userId === userId);
 };
 
+
+
 io.on("connection", (socket) => {
   //when connect
   console.log("a user connected.");
@@ -28,6 +31,7 @@ io.on("connection", (socket) => {
     addUser(userId, socket.id);
     io.emit("getUsers", users);
   });
+
 
   //send and get message
   socket.on("sendMessage", ({ messages, currentChatID }) => {
@@ -61,6 +65,13 @@ io.on("connection", (socket) => {
   socket.on("stop typing message", (data) => {
     const user = getUser(data.receiverId);
     io.to(user?.socketId).emit("stop typing message", data);
+  });
+
+  //=================Notifications =================//
+  //send and get notification
+  socket.on("sendNotification", (data) => {
+    const user = getUser(data.receiverId);
+    io.to(user?.socketId).emit("getNotification", data);
   });
 
   //when disconnect
