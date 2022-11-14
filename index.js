@@ -4,12 +4,20 @@ const io = require("socket.io")(8900, {
   },
 });
 
+const { PeerServer } = require('peer');
+ 
+const peerServer = PeerServer({ port: 9000, path: '/myapp' });
+
 let users = [];
+
+const broadcastEventTypes = {
+  ACTIVE_USERS: 'ACTIVE_USERS',
+  GROUP_CALL_ROOMS: 'GROUP_CALL_ROOMS'
+};
 
 const addUser = (userId, socketId) => {
   !users.some((user) => user.userId === userId) &&
     users.push({ userId, socketId });
-    console.log("user", users);
 };
 
 const removeUser = (socketId) => {
@@ -30,6 +38,13 @@ io.on("connection", (socket) => {
   socket.on("addUser", (userId) => {
     addUser(userId, socket.id);
     io.emit("getUsers", users);
+
+    console.log("users", users);
+
+    io.sockets.emit('broadcast', {
+      event: broadcastEventTypes.ACTIVE_USERS,
+      activeUsers: users
+    });
   });
 
 
