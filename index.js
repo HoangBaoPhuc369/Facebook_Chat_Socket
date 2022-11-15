@@ -1,12 +1,30 @@
-const io = require("socket.io")(8900, {
-  cors: {
-    origin: "http://localhost:3000",
-  },
+const express = require('express');
+const socket = require('socket.io');
+const { ExpressPeerServer } = require('peer');
+const groupCallHandler = require('./groupCallHandler');
+const PORT = 8900;
+
+const app = express();
+
+const server = app.listen(PORT, () => {
+  console.log(`server is listening on port ${PORT}`);
+  console.log(`http://localhost:${PORT}`);
 });
 
-const { PeerServer } = require('peer');
- 
-const peerServer = PeerServer({ port: 9000, path: '/myapp' });
+const peerServer = ExpressPeerServer(server, {
+  debug: true
+});
+
+app.use('/peerjs', peerServer);
+
+groupCallHandler.createPeerServerListeners(peerServer);
+
+const io = socket(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST']
+  }
+});
 
 let users = [];
 
@@ -74,6 +92,7 @@ io.on("connection", (socket) => {
 
   // Listen typing events
   socket.on("start typing message", (data) => {
+    console.log("start typing message", data);
     const user = getUser(data.receiverId);
     io.to(user?.socketId).emit("start typing message", data);
   });
@@ -94,5 +113,14 @@ io.on("connection", (socket) => {
     console.log("a user disconnected!");
     removeUser(socket.id);
     io.emit("getUsers", users);
+  });
+
+
+  //=================HANDLE Call =================//
+  socket.on('webRTC-candidate', (data) => {
+    console.log('handling ice candidate');
+    io.to(data.connectedUserSocketId).emit('webRTC-candidate', {
+      candidate: data.candidate
+    });
   });
 });
