@@ -1,7 +1,7 @@
-const express = require('express');
-const socket = require('socket.io');
-const { ExpressPeerServer } = require('peer');
-const groupCallHandler = require('./groupCallHandler');
+const express = require("express");
+const socket = require("socket.io");
+const { ExpressPeerServer } = require("peer");
+const groupCallHandler = require("./groupCallHandler");
 const PORT = 8900;
 
 const app = express();
@@ -12,30 +12,30 @@ const server = app.listen(PORT, () => {
 });
 
 const peerServer = ExpressPeerServer(server, {
-  debug: true
+  debug: true,
 });
 
-app.use('/peerjs', peerServer);
+app.use("/peerjs", peerServer);
 
 groupCallHandler.createPeerServerListeners(peerServer);
 
 const io = socket(server, {
   cors: {
-    origin: '*',
-    methods: ['GET', 'POST']
-  }
+    origin: "*",
+    methods: ["GET", "POST"],
+  },
 });
 
 let users = [];
 
 const broadcastEventTypes = {
-  ACTIVE_USERS: 'ACTIVE_USERS',
-  GROUP_CALL_ROOMS: 'GROUP_CALL_ROOMS'
+  ACTIVE_USERS: "ACTIVE_USERS",
+  GROUP_CALL_ROOMS: "GROUP_CALL_ROOMS",
 };
 
-const addUser = (userId, socketId) => {
+const addUser = (userId, socketId, userName, picture, timeJoin) => {
   !users.some((user) => user.userId === userId) &&
-    users.push({ userId, socketId });
+    users.push({ userId, socketId, userName, picture, timeJoin });
 };
 
 const removeUser = (socketId) => {
@@ -46,25 +46,20 @@ const getUser = (userId) => {
   return users.find((user) => user.userId === userId);
 };
 
-
-
 io.on("connection", (socket) => {
   //when connect
   console.log("a user connected.");
 
   //take userId and socketId from user
-  socket.on("addUser", (userId) => {
-    addUser(userId, socket.id);
+  socket.on("addUser", (data) => {
+    addUser(data.userId, socket.id, data.userName, data.picture, data.timeJoin);
     io.emit("getUsers", users);
 
-    console.log("users", users);
-
-    io.sockets.emit('broadcast', {
+    io.emit("broadcast", {
       event: broadcastEventTypes.ACTIVE_USERS,
-      activeUsers: users
+      activeUsers: users,
     });
   });
-
 
   //send and get message
   socket.on("sendMessage", ({ messages, currentChatID }) => {
@@ -108,6 +103,19 @@ io.on("connection", (socket) => {
     io.to(user?.socketId).emit("getNotification", data);
   });
 
+  //=================HANDLE Call =================//
+
+  // listeners related with direct call
+  socket.on("call-other", (data) => {
+    const user = getUser(data.receiveId);
+    io.to(user?.socketId).emit("call-other", {
+      callerUserId: data.senderId,
+      callerUsername: data.username,
+      callerPicture: data.picture,
+      roomId: data.roomId,
+    });
+  });
+
   //when disconnect
   socket.on("disconnect", () => {
     console.log("a user disconnected!");
@@ -115,12 +123,4 @@ io.on("connection", (socket) => {
     io.emit("getUsers", users);
   });
 
-
-  //=================HANDLE Call =================//
-  socket.on('webRTC-candidate', (data) => {
-    console.log('handling ice candidate');
-    io.to(data.connectedUserSocketId).emit('webRTC-candidate', {
-      candidate: data.candidate
-    });
-  });
 });
